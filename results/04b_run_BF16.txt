@@ -1,0 +1,22 @@
+  -- TOOL probes (BF16)
+    [ok  ] calc_route       want=calculator    got=calculator    
+    [ok  ] search_route     want=web_search    got=web_search    
+    [ok  ] weather_enum     want=get_weather   got=get_weather   
+    [ok  ] nested_json      want=create_event  got=create_event  
+    [ok  ] calc_vs_search2  want=calculator    got=calculator    
+    [ok  ] nested_enum      want=create_order  got=create_order  
+    [FAIL] abstain          want=__none__      got=web_search    <wrong-fn>
+    [ok  ] search_then_calc want=web_search    got=web_search    
+    [ok  ] par_weather      want=get_weather   got=get_weather   
+  -- REASON probes (BF16)
+    [ok  ] apples           want=120    got='120'
+    [ok  ] xy               want=21     got='21'
+    [ok  ] strings          want=24     got='24'
+    [ok  ] shirt            want=80     got='$80'
+    [ok  ] taps             want=4      got='4'
+    [ok  ] avgspeed         want=60     got='60'
+    [ok  ] snail            want=8      got='8'
+    [ok  ] div3or5          want=47     got='47'
+    [ok  ] overtime         want=735    got='735'
+    [ok  ] fatherson        want=12     got='12'
+  == BF16: TOOL 8/9 | REASON 10/10 (vs key)

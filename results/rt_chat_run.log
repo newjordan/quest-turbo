@@ -1,0 +1,26 @@
+loading........ up
+
+========== T1 reasoning  (6.5s, 500 tok, 77 tok/s e2e) ==========
+  <think> We are given a mixture-of-experts (MoE) model with 30 billion parameters in total, and for each token, 8 out of 128 experts are active. We need to estimate the number of parameters that are [...]
+
+========== T2 follow-up (uses T1)  (6.1s, 500 tok, 81 tok/s e2e) ==========
+  <think> We are given: - Total model parameters: 30B - Number of experts per token: 8 out of 128 First, let's compute the number of parameters active per token. Since there are 128 experts and each token [...]
+
+========== T3 tool routing  (2.3s, 149 tok, 65 tok/s e2e) ==========
+  <think> We need to estimate the theoretical max tokens/sec given that decode reads about 2.3 GB of weights per token and the GPU sustains ~450 GB/s memory bandwidth. The theoretical max tokens per [...]
+  TOOL_CALL: calculator {"expression": "450 / 2.3"}
+
+========== T3b after tool result  (5.3s, 400 tok, 76 tok/s e2e) ==========
+  <think> We are given: - The GPU memory bandwidth: 450 GB/s - The amount of weight data read per token: 2.3 GB We want to compute the theoretical maximum tokens per second (tokens/s). The calculation is [...]
+  REPLY: The theoretical maximum tokens per second is calculated as follows: **Tokens/sec = Memory Bandwidth / Weight Data per Token**
+
+========== T4 synthesis (uses tool result + memory)  (5.2s, 400 tok, 77 tok/s e2e) ==========
+  <think> We are given: - Theoretical max tokens/sec = 195.65 (from previous calculation) - Measured decode speed = 86 tokens per second The question asks: why is the real-world speed far below the [...]
+  REPLY: The real-world decode speed is lower because the theoretical maximum assumes perfect memory-bandwidth utilization with no additional computational overheads
+
+=== server-side decode rates this session ===
+0.22.587.785 I slot print_timing: id  3 | task 0 |        eval time =    5888.15 ms /   500 tokens (   11.78 ms per token,    84.92 tokens per second)
+0.28.732.589 I slot print_timing: id  3 | task 501 |        eval time =    5940.08 ms /   500 tokens (   11.88 ms per token,    84.17 tokens per second)
+0.31.036.391 I slot print_timing: id  2 | task 1003 |        eval time =    1748.73 ms /   149 tokens (   11.74 ms per token,    85.20 tokens per second)
+0.36.287.508 I slot print_timing: id  1 | task 1154 |        eval time =    4833.21 ms /   400 tokens (   12.08 ms per token,    82.76 tokens per second)
+0.41.469.672 I slot print_timing: id  1 | task 1556 |        eval time =    4911.36 ms /   400 tokens (   12.28 ms per token,    81.44 tokens per second)

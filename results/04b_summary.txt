@@ -1,0 +1,8 @@
+
+model       TOOL_key  TOOLagree  REAS_key  REASagree  THINK_ok
+--------------------------------------------------------------
+BF16          8/9       8/9     10/10     10/10    10/10 
+Q5_K_M        8/9       8/9     10/10     10/10    10/10 
+
+SHIP RULE: pick the smallest quant whose TOOL_key and REAS_key both stay within ~1-2 of the
+BF16 reference. A TOOL drop with flat PPL = the agentic cliff this gate exists to catch.

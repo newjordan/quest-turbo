@@ -1,0 +1,23 @@
+loading........ up
+
+[gen 352 tok in 4.7s = 74 tok/s e2e]
+
+----- <think> (full) -----
+ We are given:
+- Total model parameters: 30 billion (30B)
+- Number of experts: 128
+- Number of experts activated per token: 8
+
+Therefore, the fraction of parameters activated per token is: 8/128 = 1/16.
+
+So, the active parameters per token = (8/128) * 30B = (1/16)*30B ≈ 1.875B parameters.
+
+Why is this cheaper to serve than a dense 30B model?
+1. The MoE model only computes and activates a subset of the total parameters (1.875B) per token, reducing the computational load (FLOPs) and memory bandwidth required per inference step.
+2. This leads to lower hardware utilization (e.g., less GPU memory and compute time) and thus lower cost per inference request.
+3. Additionally, the reduced active parameter count allows for serving more requests concurrently on the same hardware, further decreasing the cost per request.
+
+Thus, the active parameters per token are approximately 1.875 billion, and the MoE model is cheaper because it leverages sparsity in expert activation, reducing computation and resource usage per token.
+
+----- FINAL ANSWER (full) -----
+ The active parameters per token are approximately 1.875B (8/128 of 30B). This is cheaper to serve than a dense 30B model because only a fraction of parameters (1/16) are computed per token, significantly reducing FLOPs and memory bandwidth. Consequently, hardware utilization drops, enabling higher throughput and lower latency on the same infrastructure, which directly lowers per-inference costs.

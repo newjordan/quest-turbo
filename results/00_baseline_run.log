@@ -1,0 +1,16 @@
+>> Baseline speed reference: Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf  (-ngl 99)
+== main build: pp512 / tg128 ==
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| qwen35moe 35B.A3B Q5_K - Medium |  24.76 GiB |    34.66 B | SYCL       |  99 |   1 |           pp512 |        993.37 ± 2.70 |
+| qwen35moe 35B.A3B Q5_K - Medium |  24.76 GiB |    34.66 B | SYCL       |  99 |   1 |           tg128 |         74.83 ± 0.03 |
+
+build: e10ee49fd (6)
+== MoE-reorder build: pp512 / tg128 (the speed tree) ==
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| qwen35moe 35B.A3B Q5_K - Medium |  24.76 GiB |    34.66 B | SYCL       |  99 |   1 |           pp512 |       1154.63 ± 4.09 |
+| qwen35moe 35B.A3B Q5_K - Medium |  24.76 GiB |    34.66 B | SYCL       |  99 |   1 |           tg128 |         79.91 ± 0.07 |
+
+build: 0b98ca1b4 (48)
+>> Phase 0 done -> $HOME/quest-turbo/results/00_baseline.txt

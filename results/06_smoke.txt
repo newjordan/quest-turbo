@@ -1,0 +1,5 @@
+S1 tool-route : PASS  fn=get_weather args={"location": "Paris", "unit": "celsius"}
+S2 round-trip : PASS  reply='The product of 17 and 23 is **391**.\n\n**Step-by-Step Explanation:**\n\n17 × 23  \n='
+S3 think      : PASS  has120=True  len=2301
+
+SMOKE: S1=True S2=True S3=True  ->  ALL PASS

@@ -1,0 +1,15 @@
+>> Serving Q5_K_M on 127.0.0.1:8093  (build=$HOME/llama.cpp-sycl-moe-ready/build/bin, ngl 99, ctx 65536, KV q8_0, -ub 4096 -b 8192, jinja)
+   waiting for health........ ok
+== load-time VRAM / buffers / MoE reorder (from server log) ==
+0.14.941.921 W llama_context: n_ctx_seq (65536) < n_ctx_train (262144) -- the full capacity of the model will not be utilized
+0.15.208.602 I slot   load_model: id  0 | task -1 | new slot, n_ctx = 65536
+0.15.208.606 I slot   load_model: id  1 | task -1 | new slot, n_ctx = 65536
+0.15.208.607 I slot   load_model: id  2 | task -1 | new slot, n_ctx = 65536
+0.15.208.607 I slot   load_model: id  3 | task -1 | new slot, n_ctx = 65536
+== smoke tests (S1 tool-route, S2 tool round-trip, S3 think) ==
+S1 tool-route : PASS  fn=get_weather args={"location": "Paris", "unit": "celsius"}
+S2 round-trip : PASS  reply='The product of 17 and 23 is **391**.\n\n**Step-by-Step Explanation:**\n\n17 × 23  \n='
+S3 think      : PASS  has120=True  len=2301
+
+SMOKE: S1=True S2=True S3=True  ->  ALL PASS
+>> Smoke done. Stopping server (serve for real with: QUANT=Q5_K_M CTX=65536 bash scripts/06_serve.sh)

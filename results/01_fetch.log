@@ -1,0 +1,3 @@
+>> Downloading QUEST checkpoint: osunlp/QUEST-30B-RL (everything except any pre-baked GGUFs)
+Still waiting to acquire lock on $HOME/quest-turbo/artifacts/hf-src/.cache/huggingface/.gitignore.lock (elapsed: 0.1 seconds)
+Still waiting to acquire lock on $HOME/quest-turbo/artifacts/hf-src/.cache/huggingface/.gitignore.lock (elapsed: 0.1 seconds)

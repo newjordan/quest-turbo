@@ -1,0 +1,215 @@
+{
+  "tool": {
+    "calc_route": {
+      "want_fn": "calculator",
+      "got_fn": "calculator",
+      "args": {
+        "expression": "17 * 23"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "search_route": {
+      "want_fn": "web_search",
+      "got_fn": "web_search",
+      "args": {
+        "query": "current population of Tokyo"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "weather_enum": {
+      "want_fn": "get_weather",
+      "got_fn": "get_weather",
+      "args": {
+        "location": "Paris",
+        "unit": "celsius"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "nested_json": {
+      "want_fn": "create_event",
+      "got_fn": "create_event",
+      "args": {
+        "title": "Q3 Review",
+        "date": "2026-07-01",
+        "attendees": [
+          "alice",
+          "bob"
+        ]
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "calc_vs_search2": {
+      "want_fn": "calculator",
+      "got_fn": "calculator",
+      "args": {
+        "expression": "144 / 12"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "nested_enum": {
+      "want_fn": "create_order",
+      "got_fn": "create_order",
+      "args": {
+        "priority": "high",
+        "items": [
+          {
+            "sku": "A100",
+            "qty": 2
+          },
+          {
+            "sku": "B200",
+            "qty": 3
+          }
+        ],
+        "shipping": {
+          "method": "express",
+          "address": "5 Main St"
+        }
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "abstain": {
+      "want_fn": "__none__",
+      "got_fn": "web_search",
+      "args": {
+        "query": "good morning translation French"
+      },
+      "malformed": "",
+      "routed": false,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": false
+    },
+    "search_then_calc": {
+      "want_fn": "web_search",
+      "got_fn": "web_search",
+      "args": {
+        "query": "current population of Tokyo 2025"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 1,
+      "pass": true
+    },
+    "par_weather": {
+      "want_fn": "get_weather",
+      "got_fn": "get_weather",
+      "args": {
+        "location": "Paris",
+        "unit": "celsius"
+      },
+      "malformed": "",
+      "routed": true,
+      "args_ok": true,
+      "n_calls": 2,
+      "pass": true
+    }
+  },
+  "reason": {
+    "apples": {
+      "want": "120",
+      "ans": "120",
+      "norm": "120",
+      "raw": "The store started with 240 apples.\n\nOn Monday, it sold 1/3 of the apples:  \n(1/3) \u00d7 240 = 80 apples sold.  \nRemaining after Monday: 240 - 80 = 160 apples.\n\nOn Tuesday, it sold 1/4 of the remaining apples:  \n(1/4) \u00d7 160 = 40 apples sold.  \nRemaining after Tuesday: 160 - 40 = 120 apples.\n\nAlternatively, the fraction of apples left after both days is (2/3) \u00d7 (3/4) = 1/2 of the original amount:  \n(1/2) \u00d7 240 = 120 apples.\n\nThus, the number of apples left is 120.\n\nANSWER: 120",
+      "think_ok": true,
+      "err": ""
+    },
+    "xy": {
+      "want": "21",
+      "ans": "21",
+      "norm": "21",
+      "raw": "ANSWER: 21",
+      "think_ok": true,
+      "err": ""
+    },
+    "strings": {
+      "want": "24",
+      "ans": "24",
+      "norm": "24",
+      "raw": "ANSWER: 24",
+      "think_ok": true,
+      "err": ""
+    },
+    "shirt": {
+      "want": "80",
+      "ans": "$80",
+      "norm": "80",
+      "raw": "The shirt initially costs $80.  \nA 25% increase means adding 25% of $80 to the original price:  \n25% of 80 = 0.25 \u00d7 80 = 20, so the new price is 80 + 20 = $100.  \nThen, a 20% decrease means subtracting 20% of the new price ($100) from that amount:  \n20% of 100 = 0.20 \u00d7 100 = 20, so the final price is 100 - 20 = $80.  \nAlternatively, mathematically, increasing by 25% is multiplying by 1.25, and decreasing by 20% is multiplying by 0.80, so 1.25 \u00d7 0.80 = 1.00, meaning the final price equals the original price of $80.\n\nANSWER: $80",
+      "think_ok": true,
+      "err": ""
+    },
+    "taps": {
+      "want": "4",
+      "ans": "4",
+      "norm": "4",
+      "raw": "ANSWER: 4",
+      "think_ok": true,
+      "err": ""
+    },
+    "avgspeed": {
+      "want": "60",
+      "ans": "60",
+      "norm": "60",
+      "raw": "ANSWER: 60",
+      "think_ok": true,
+      "err": ""
+    },
+    "snail": {
+      "want": "8",
+      "ans": "8",
+      "norm": "8",
+      "raw": "ANSWER: 8",
+      "think_ok": true,
+      "err": ""
+    },
+    "div3or5": {
+      "want": "47",
+      "ans": "47",
+      "norm": "47",
+      "raw": "To determine how many integers from 1 to 100 inclusive are divisible by 3 or by 5, we can use the principle of inclusion-exclusion.\n\n**Step-by-step reasoning:**\n\n1. **Count numbers divisible by 3:**  \n   The largest multiple of 3 within 100 is 99 (since $3 \\times 33 = 99$).  \n   So, there are $\\left\\lfloor \\frac{100}{3} \\right\\rfloor = 33$ numbers divisible by 3.\n\n2. **Count numbers divisible by 5:**  \n   The largest multiple of 5 within 100 is 100 (since $5 \\times 20 = 100$).  \n   So, there are $\\left\\lfloor \\frac{100}{5} \\right\\rfloor = 20$ numbers divisible by 5.\n\n3. **Count numbers divisible by both 3 and 5 (i.e., divisible by their least common multiple, 15):**  \n   The largest multiple of 15 within 100 is 90 (since $15 \\times 6 = 90$).  \n   So, there are $\\left\\lfloor \\frac{100}{15} \\right\\rfloor = 6$ numbers divisible by both 3 and 5.\n\n4. **Apply inclusion-exclusion:**  \n   Total numbers divisible by 3 or 5 = (Numbers divisible by 3) + (Numbers divisible by 5) - (Numbers divisible by both 3 and 5)  \n   $= 33 + 20 - 6 = 47$.\n\n**Final answer:**  \nANSWER: 47",
+      "think_ok": true,
+      "err": ""
+    },
+    "overtime": {
+      "want": "735",
+      "ans": "735",
+      "norm": "735",
+      "raw": "The worker earns $15 per hour for the first 40 hours.  \nRegular pay for 40 hours: 40 \u00d7 $15 = $600.  \n\nThey worked 46 hours total, so overtime hours are 46 \u2212 40 = 6 hours.  \nOvertime pay rate is 1.5 times the regular rate: 1.5 \u00d7 $15 = $22.50 per hour.  \nOvertime pay for 6 hours: 6 \u00d7 $22.50 = $135.  \n\nTotal pay is the sum of regular and overtime pay: $600 + $135 = $735.  \n\nANSWER: 735",
+      "think_ok": true,
+      "err": ""
+    },
+    "fatherson": {
+      "want": "12",
+      "ans": "12",
+      "norm": "12",
+      "raw": "ANSWER: 12",
+      "think_ok": true,
+      "err": ""
+    }
+  }
+}

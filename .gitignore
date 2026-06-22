@@ -1,0 +1,12 @@
+# Big binaries live in artifacts/ — never commit them.
+artifacts/
+*.gguf
+*.imatrix
+*.safetensors
+hf-src/
+
+# Python / tooling caches
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc

@@ -1,0 +1,23 @@
+# Phase 2 imatrix — expert-coverage summary (2026-06-22)
+# Source: results/02_imatrix_run.log  |  imatrix: artifacts/quest-30b-rl.imatrix (117 MB)
+# Calib: calib-data/calibration_datav3.txt (generic English, 2481 lines), 128 chunks, n_ctx 512.
+
+Final calib PPL (BF16, -ngl 20)         : 7.4375 +/- 0.10953
+
+DEAD experts (0% / NaN / no-data)       : NONE  <- hard-stop check PASSES
+Expert tensors with partial coverage    : 42 of 144 (48L x {gate,up,down}_exps)
+Layers affected                         : 2 3 4 11 24 33 37 41 42 43 44 45 46 47  (14 of 48)
+Per-tensor coverage range               : 95.31% .. 99.22%  (1..6 uncovered experts of 128)
+  99.22% (1 expert uncovered) : 153 save-warnings (most common)
+  98.44% (2)                  : 66
+  97.66% (3)                  : 36
+  96.88% (4)                  : 24
+  96.09% (5)                  : 30
+  95.31% (6)                  : 9
+(318 total warnings = 42 entries re-reported across periodic saves, not 318 distinct issues.)
+
+VERDICT: strong coverage, no dead experts -> PROCEED to quant sweep.
+RISK (QUEST-specific): generic calib corpus may leave tool-call / <think> specialist experts in
+the uncovered long tail. PPL cannot see this; the agentic gate (04b) is the decisive check.
+REMEDIATION if 04b shows tool/reason degradation attributable to coverage: widen calib corpus
+with agentic/tool-call traces and re-run 02 -> re-quant the affected candidate(s).

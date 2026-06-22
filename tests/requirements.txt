@@ -1,0 +1,7 @@
+# QUEST cert suite deps. NOTE: the system /usr/bin/python3 lacks pytest + gguf;
+# the only interpreter with all of these is $CONV_PY ($HOME/venv/bin/python).
+# certify.sh and EVERY pytest invocation MUST use $CONV_PY.
+pytest>=9
+PyYAML>=6
+gguf>=0.19
+numpy>=1.26   # gguf dependency; used to coerce GGUF metadata scalars (numpy int/float -> python)

@@ -1,0 +1,62 @@
+0.00.165.897 I log_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.165.899 I device_info:
+0.00.166.161 I   - SYCL0   : Intel(R) Arc(TM) Pro B70 Graphics (32656 MiB, 32583 MiB free)
+0.00.166.168 I   - CPU     : AMD Ryzen 9 5950X 16-Core Processor (64205 MiB, 64205 MiB free)
+0.00.166.205 I system_info: n_threads = 16 (n_threads_batch = 16) / 32 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.00.166.209 I srv  llama_server: n_parallel is set to auto, using n_parallel = 4 and kv_unified = true
+0.00.166.276 I srv          init: using 31 threads for HTTP server
+0.00.166.351 I srv         start: binding port with default address family
+0.00.167.506 I srv  llama_server: loading model
+0.00.167.516 I srv    load_model: loading model '$HOME/quest-turbo/artifacts/quest-30b-rl-Q5_K_M.gguf'
+0.00.167.586 I common_init_result: fitting params to device memory ...
+0.00.167.587 I common_init_result: (for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on)
+0.00.418.850 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.14.970.777 W llama_context: n_ctx_seq (32768) < n_ctx_train (262144) -- the full capacity of the model will not be utilized
+0.14.995.365 I common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+0.15.187.900 I srv    load_model: initializing slots, n_slots = 4
+0.15.214.506 W common_speculative_init: no implementations specified for speculative decoding
+0.15.214.510 I slot   load_model: id  0 | task -1 | new slot, n_ctx = 32768
+0.15.214.514 I slot   load_model: id  1 | task -1 | new slot, n_ctx = 32768
+0.15.214.523 I slot   load_model: id  2 | task -1 | new slot, n_ctx = 32768
+0.15.214.523 I slot   load_model: id  3 | task -1 | new slot, n_ctx = 32768
+0.15.214.610 I srv    load_model: prompt cache is enabled, size limit: 8192 MiB
+0.15.214.612 I srv    load_model: use `--cache-ram 0` to disable the prompt cache
+0.15.214.612 I srv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+0.15.214.612 I srv    load_model: context checkpoints enabled, max = 32, min spacing = 256
+0.15.214.627 I srv          init: idle slots will be saved to prompt cache and cleared upon starting a new task
+0.15.220.323 I init: chat template, example_format: '<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+<think>
+'
+0.15.223.874 I srv          init: init: chat template, thinking = 1
+0.15.223.903 I srv  llama_server: model loaded
+0.15.223.908 I srv  llama_server: server is listening on http://127.0.0.1:8093
+0.15.223.912 I srv  update_slots: all slots are idle
+0.16.076.761 I srv  params_from_: Chat format: peg-native
+0.16.076.858 I slot get_availabl: id  3 | task -1 | selected slot by LRU, t_last = -1
+0.16.076.861 I srv  get_availabl: updating prompt cache
+0.16.076.866 I srv          load:  - looking for better prompt, base f_keep = -1.000, sim = 0.000
+0.16.076.870 I srv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 32768 tokens, 8589934592 est)
+0.16.076.871 I srv  get_availabl: prompt cache update took 0.01 ms
+0.16.076.918 I slot launch_slot_: id  3 | task 0 | processing task, is_child = 0
+0.16.076.920 I slot process_sing: id  0 | task -1 | saving idle slot to prompt cache
+0.16.076.921 I slot prompt_clear: id  0 | task -1 | clearing prompt with 0 tokens
+0.16.076.942 I slot process_sing: id  1 | task -1 | saving idle slot to prompt cache
+0.16.076.943 I slot prompt_clear: id  1 | task -1 | clearing prompt with 0 tokens
+0.16.076.961 I slot process_sing: id  2 | task -1 | saving idle slot to prompt cache
+0.16.076.962 I slot prompt_clear: id  2 | task -1 | clearing prompt with 0 tokens
+0.17.905.621 I slot print_timing: id  3 | task 0 | n_decoded =    100, tg =  82.46 t/s
+0.20.803.080 I slot print_timing: id  3 | task 0 | prompt eval time =     615.84 ms /    59 tokens (   10.44 ms per token,    95.80 tokens per second)
+0.20.803.084 I slot print_timing: id  3 | task 0 |        eval time =    4110.24 ms /   352 tokens (   11.68 ms per token,    85.64 tokens per second)
+0.20.803.084 I slot print_timing: id  3 | task 0 |       total time =    4726.08 ms /   411 tokens
+0.20.803.087 I slot print_timing: id  3 | task 0 |    graphs reused =        350
+0.20.803.123 I slot      release: id  3 | task 0 | stop processing: n_tokens = 410, truncated = 0
+0.20.803.132 I srv  update_slots: all slots are idle
+0.20.811.563 I srv    operator(): operator(): cleaning up before exit...

@@ -1,0 +1,45 @@
+>> Q5_K_M speed-tune (ngl 99 full offload). Baseline ceiling: pp512 1154.6 / tg128 79.9 (MoE tree).
+== B5 build A/B @ ship flags (does the MoE-reorder win transfer to QUEST?) ==
+-- main build --
+| model                          |       size |     params | backend    | ngl | n_batch | n_ubatch |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | -------: | --: | --------------: | -------------------: |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           pp512 |      1400.14 ± 11.83 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           tg128 |        101.66 ± 0.21 |
+
+build: e10ee49fd (6)
+-- MoE build  --
+| model                          |       size |     params | backend    | ngl | n_batch | n_ubatch |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | -------: | --: | --------------: | -------------------: |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           pp512 |      1392.88 ± 14.85 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           tg128 |        109.65 ± 0.18 |
+
+build: 0b98ca1b4 (48)
+== B1 -ub prefill sweep (the MoE expert-GEMM un-starve lever; -p 4096 so the knob is visible) ==
+| model                          |       size |     params | backend    | ngl | n_batch | n_ubatch |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | -------: | --: | --------------: | -------------------: |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |      512 |   1 |          pp4096 |       1130.19 ± 6.16 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     2048 |   1 |          pp4096 |       1702.95 ± 1.28 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |          pp4096 |       1803.74 ± 2.24 |
+
+build: 0b98ca1b4 (48)
+== B2 flash-attn on/off ==
+| model                          |       size |     params | backend    | ngl | n_batch | n_ubatch |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | -------: | --: | --------------: | -------------------: |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   0 |           pp512 |      1596.60 ± 20.32 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   0 |           tg128 |        105.18 ± 0.08 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           pp512 |       1361.27 ± 3.80 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   1 |           tg128 |        109.27 ± 0.20 |
+
+build: 0b98ca1b4 (48)
+== B4(trim) decode at depth, KV q8_0 (the agentic long-ctx payoff) ==
+| model                          |       size |     params | backend    | ngl | n_batch | n_ubatch | type_k | type_v |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | -------: | -----: | -----: | --: | --------------: | -------------------: |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |           pp512 |       1379.54 ± 9.50 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |           tg128 |         89.94 ± 0.33 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |  pp512 @ d16384 |        418.72 ± 1.31 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |  tg128 @ d16384 |         17.73 ± 0.02 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |  pp512 @ d32768 |        240.04 ± 0.47 |
+| qwen3moe 30B.A3B Q5_K - Medium |  20.23 GiB |    30.53 B | SYCL       |  99 |    8192 |     4096 |   q8_0 |   q8_0 |   1 |  tg128 @ d32768 |          9.92 ± 0.01 |
+
+build: 0b98ca1b4 (48)
+>> Phase 5 focused done -> $HOME/quest-turbo/results/05_*.txt

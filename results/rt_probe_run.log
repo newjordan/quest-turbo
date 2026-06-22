@@ -1,0 +1,8 @@
+loading........ up
+[A short-ctx ] prompt_tok=30 gen_tok=320 e2e=4.33s -> 74.0 tok/s end-to-end (incl http+template+sampling)
+[B ~8k-ctx  ] prompt_tok=7774 gen_tok=64 e2e=7.75s -> 8.3 tok/s end-to-end
+=== server-side per-request timings (authoritative) ===
+0.20.390.496 I slot print_timing: id  3 | task 0 | prompt eval time =     571.52 ms /    30 tokens (   19.05 ms per token,    52.49 tokens per second)
+0.20.390.500 I slot print_timing: id  3 | task 0 |        eval time =    3728.68 ms /   320 tokens (   11.65 ms per token,    85.82 tokens per second)
+0.28.137.787 I slot print_timing: id  2 | task 321 | prompt eval time =    5645.57 ms /  7774 tokens (    0.73 ms per token,  1377.01 tokens per second)
+0.28.137.790 I slot print_timing: id  2 | task 321 |        eval time =    2076.76 ms /    64 tokens (   32.45 ms per token,    30.82 tokens per second)
