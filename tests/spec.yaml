@@ -150,4 +150,4 @@ thresholds:
   # Conservative same-family floor: the 35B/256E A3B reference peaks pp512 1154.6 / tg128 79.9 on the B70.
   # QUEST-30B/128E Q5_K_M clears it comfortably (measured pp512 ~1380 / tg128 ~90-110), so this floor
   # catches gross speed regressions without false NO-SHIPs. Re-derive from a QUEST bench for a tighter floor.
-  perf:     {pp512_baseline: 1154.6, tg128_baseline: 79.9, tolerance: 0.05}   # -> pp512_min 1097.0, tg128_min 75.9
+  perf:     {pp512_baseline: 1154.6, tg128_baseline: 79.9, tolerance: 0.05}   # -> pp512_min 1096.9, tg128_min 75.9

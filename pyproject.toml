@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests/lib"]
+markers = [
+    "scoring: pure scorer unit tests (no GPU, synthetic data)",
+    "agentic: behavioral tool/reason probes (needs --server-url)",
+    "metadata: GGUF metadata/topology checks (needs --model-path)",
+    "performance: llama-bench perf gate (needs --bench-file)",
+    "perplexity: llama-perplexity quality gate (needs --ppl-file)",
+    "gpu: requires the GPU/server",
+]

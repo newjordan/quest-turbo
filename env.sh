@@ -37,11 +37,18 @@ export BIN="$LCPP/build/bin"
 export MOE_LCPP="${MOE_LCPP:-$HOME/llama.cpp-sycl-moe-ready}"
 export MOE_BIN="$MOE_LCPP/build/bin"
 # Prefer the MoE tree's binaries if built, else the main build.
-export RUN_BIN="$([ -x "$MOE_BIN/llama-server" ] && echo "$MOE_BIN" || echo "$BIN")"
+if [[ -x "$MOE_BIN/llama-server" ]]; then
+  RUN_BIN="$MOE_BIN"
+else
+  RUN_BIN="$BIN"
+fi
+export RUN_BIN
 
 # --- paths -----------------------------------------------------------------
-export MODEL_DIR="${MODEL_DIR:-$HOME/models/QUEST-30B-RL}"
-export WORK="${WORK:-$HOME/quest-turbo}"
+# The campaign directory is this repo. Override WORK when artifacts live elsewhere.
+_QUEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export MODEL_DIR="${MODEL_DIR:-${HOME:-}/models/QUEST-30B-RL}"
+export WORK="${WORK:-$_QUEST_ROOT}"
 export ART="$WORK/artifacts"          # bf16 + imatrix + quant outputs (big, gitignored)
 export RES="$WORK/results"            # bench / ppl / parity / gate logs (committed)
 
@@ -55,10 +62,29 @@ export CALIB="${CALIB:-$HOME/calib-data/calibration_datav3.txt}"  # reused share
 # never an accuracy ref (different weights AND topology: 35B/256-expert vs QUEST 30B/128-expert).
 export BASE_REF="${BASE_REF:-$HOME/models/Qwen3.6-35B-A3B/Qwen3.6-35B-A3B-UD-Q5_K_XL.gguf}"
 
-# --- HF -------------------------------------------------------------------
-export HF_BIN="${HF_BIN:-$HOME/venv/bin/hf}"     # hf 1.18.0
-# Python for convert_hf_to_gguf.py — needs torch+gguf+transformers. venv has them.
-export CONV_PY="${CONV_PY:-$HOME/venv/bin/python}"
+# --- HF / Python ----------------------------------------------------------
+# Prefer an existing venv, then whatever is on PATH. A missing $HOME/venv used to
+# be the only default, so a fresh clone could not run the cert suite.
+if [[ -z "${HF_BIN:-}" ]]; then
+  if [[ -n "${HOME:-}" && -x "$HOME/venv/bin/hf" ]]; then
+    HF_BIN="$HOME/venv/bin/hf"
+  elif command -v hf >/dev/null 2>&1; then
+    HF_BIN="$(command -v hf)"
+  else
+    HF_BIN="hf"
+  fi
+fi
+export HF_BIN
+if [[ -z "${CONV_PY:-}" ]]; then
+  if [[ -n "${HOME:-}" && -x "$HOME/venv/bin/python" ]]; then
+    CONV_PY="$HOME/venv/bin/python"
+  elif command -v python3 >/dev/null 2>&1; then
+    CONV_PY="$(command -v python3)"
+  else
+    CONV_PY="python3"
+  fi
+fi
+export CONV_PY
 export HF_REPO="osunlp/QUEST-30B-RL"
 export HF_RELEASE="Frosty40/QUEST-30B-RL-B70-Turbo-GGUF"     # (release target; do NOT push w/o user OK)
 
@@ -87,6 +113,17 @@ ngl_for() {
   per_mib=$(( sz_mib / N_LAYERS )); [ "$per_mib" -le 0 ] && per_mib=1
   n=$(( budget_mib / per_mib )); [ "$n" -lt 1 ] && n=1; [ "$n" -gt 99 ] && n=99
   echo "$n"
+}
+
+# llama.cpp renamed the completion example to llama-cli. Accept either binary.
+llama_completion_bin() {
+  local d
+  for d in "$RUN_BIN" "$BIN" "$MOE_BIN"; do
+    [[ -z "$d" ]] && continue
+    if [[ -x "$d/llama-cli" ]]; then echo "$d/llama-cli"; return 0; fi
+    if [[ -x "$d/llama-completion" ]]; then echo "$d/llama-completion"; return 0; fi
+  done
+  return 1
 }
 
 mkdir -p "$ART" "$RES"

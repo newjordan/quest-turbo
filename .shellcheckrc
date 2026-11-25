@@ -1,0 +1,3 @@
+# Sourced campaign env and the optional oneAPI script are not files shellcheck can follow.
+# SC2317 / SC2329 flag trap handlers (ShellCheck 0.9 and 0.11).
+disable=SC1091,SC2317,SC2329

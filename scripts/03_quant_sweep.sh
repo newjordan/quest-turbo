@@ -9,7 +9,12 @@ source "$(dirname "$0")/../env.sh"
 [[ -f "$BF16" ]]    || { echo "missing $BF16 — run 01"; exit 1; }
 [[ -f "$IMATRIX" ]] || { echo "missing $IMATRIX — run 02"; exit 1; }
 
-QUANTS=(${QUANTS:-Q4_K_M Q5_K_M Q6_K Q8_0})   # add IQ4_XS for a second low-bit data point if wanted
+if [[ -n "${QUANTS:-}" ]]; then
+  # shellcheck disable=SC2206
+  QUANTS=($QUANTS)
+else
+  QUANTS=(Q4_K_M Q5_K_M Q6_K Q8_0)   # add IQ4_XS for a second low-bit data point if wanted
+fi
 
 : > "$RES/03_quant_sizes.txt"
 for q in "${QUANTS[@]}"; do
@@ -18,7 +23,8 @@ for q in "${QUANTS[@]}"; do
   "$RUN_BIN/llama-quantize" --imatrix "$IMATRIX" "$BF16" "$out" "$q" \
     2>&1 | tee "$RES/03_quant_${q}.log"
   sz=$(stat -c '%s' "$out")
-  printf '%-10s %15d bytes  %6.2f GB\n' "$q" "$sz" "$(echo "$sz/1073741824" | bc -l)" \
+  gib=$(awk -v s="$sz" 'BEGIN { printf "%.2f", s/1073741824 }')
+  printf '%-10s %15d bytes  %6s GiB\n' "$q" "$sz" "$gib" \
     | tee -a "$RES/03_quant_sizes.txt"
 done
 
