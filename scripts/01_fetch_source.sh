@@ -22,22 +22,46 @@ echo ">> Converting to BF16 GGUF -> $BF16  (via $CONV_PY)"
        "$CONV_PY" "$MOE_LCPP/convert_hf_to_gguf.py" "$SRC_DIR" --outfile "$BF16" --outtype bf16; }
 [[ -s "$BF16" ]] || { echo "ERROR: conversion produced no $BF16"; exit 1; }
 
-echo ">> Verifying BF16 GGUF (CPU-only; BF16 is ~61GB and won't fit the B70 VRAM for a GPU smoke)"
-ls -lh "$BF16" | tee "$RES/01_bf16_info.txt"
-"$CONV_PY" - "$BF16" <<'PY' 2>/dev/null | tee -a "$RES/01_bf16_info.txt" || true
-import sys, gguf
+echo ">> Verifying BF16 GGUF (header only; does not load tensors or the GPU)"
+# stat, not ls -l: ls records the local username and home path in the log.
+stat -c 'size_bytes=%s' "$BF16" | tee "$RES/01_bf16_info.txt"
+"$CONV_PY" - "$BF16" <<'PY' | tee -a "$RES/01_bf16_info.txt"
+import sys
+import gguf
+
 r = gguf.GGUFReader(sys.argv[1])
-def val(k):
-    f = r.fields.get(k)
-    if not f: return "?"
-    try: return bytes(f.parts[f.data[0]]).decode()
-    except Exception: return f.parts[f.data[0]]
-print("architecture   =", val("general.architecture"))
-print("name           =", val("general.name"))
-print("expert_count   =", val("qwen3moe.expert_count"))
-print("block_count    =", val("qwen3moe.block_count"))
-print("context_length =", val("qwen3moe.context_length"))
-print("tensors        =", len(r.tensors))
+
+def show(v):
+    if isinstance(v, bytes):
+        return v.decode("utf-8", "replace")
+    item = getattr(v, "item", None)
+    if callable(item) and not isinstance(v, (str, bytes, list, tuple, dict)):
+        try:
+            return item()
+        except Exception:
+            pass
+    if isinstance(v, list) and len(v) == 1:
+        return show(v[0])
+    return v
+
+keys = [
+    "general.architecture",
+    "general.name",
+    "qwen3moe.expert_count",
+    "qwen3moe.expert_used_count",
+    "qwen3moe.block_count",
+    "qwen3moe.context_length",
+    "qwen3moe.attention.head_count",
+    "qwen3moe.attention.head_count_kv",
+    "qwen3moe.embedding_length",
+    "qwen3moe.feed_forward_length",
+    "qwen3moe.expert_feed_forward_length",
+    "qwen3moe.rope.freq_base",
+]
+for key in keys:
+    field = r.fields.get(key)
+    print(f"{key} = {show(field.contents()) if field else '?'}")
+print("tensors =", len(r.tensors))
 PY
 
 echo "Phase 1 done. BF16 at: $BF16"

@@ -84,7 +84,9 @@ stop_srv() {  # FIX-B: SIGTERM -> 10x1s grace -> SIGKILL -> reap. Idempotent.
   wait "$SRV_PID" 2>/dev/null || true
   SRV_PID=""
 }
-trap 'stop_srv' EXIT INT TERM
+trap 'stop_srv' EXIT
+trap 'stop_srv; exit 130' INT
+trap 'stop_srv; exit 143' TERM
 
 # ---- serialized quality jobs (own short-lived processes, BEFORE the cert server) ----
 # 4. PPL: use --ppl-file if given, else run llama-perplexity over wikitext (40 chunks).
@@ -93,6 +95,9 @@ if [[ "$SKIP_PPL" == 0 && -z "$PPL_FILE" ]]; then
   echo ">> [ppl] llama-perplexity -m $(basename "$MODEL") -ngl $NGL -> $PPL_FILE"
   "$RUN_BIN/llama-perplexity" -m "$MODEL" -ngl "$NGL" -f "$WIKITEXT" --chunks 40 \
     2>&1 | tee "$PPL_FILE" || true
+  if ! grep -q "Final estimate" "$PPL_FILE"; then
+    echo "certify.sh WARN: perplexity log has no Final estimate ($PPL_FILE)" >&2
+  fi
 fi
 
 # 5. BENCH: use --bench-file if given, else run llama-bench (headline flags).
@@ -101,6 +106,9 @@ if [[ "$SKIP_PERF" == 0 && -z "$BENCH_FILE" ]]; then
   echo ">> [bench] llama-bench -m $(basename "$MODEL") -ngl 99 -> $BENCH_FILE"
   "$RUN_BIN/llama-bench" -m "$MODEL" -ngl 99 -fa 1 -ub 4096 -b 8192 -p 512 -n 128 -r 3 \
     2>&1 | tee "$BENCH_FILE" || true
+  if ! grep -q "pp512" "$BENCH_FILE"; then
+    echo "certify.sh WARN: bench log has no pp512 row ($BENCH_FILE)" >&2
+  fi
 fi
 
 # 3. Start the ONE cert server (only when behavioral cert will run; it is the sole B70 owner now).

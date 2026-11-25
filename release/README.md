@@ -31,7 +31,7 @@ on perplexity.
 
 | | |
 |---|---|
-| **File** | `quest-30b-rl-Q5_K_M.gguf` · 20.2 GB · imatrix Q5_K_M |
+| **File** | `quest-30b-rl-Q5_K_M.gguf` · 21,725,581,024 bytes · 20.23 GiB (21.73 GB) · imatrix Q5_K_M |
 | **Base** | `osunlp/QUEST-30B-RL` — `qwen3moe` MoE, ~30.5B total / ~3.3B active, 128 experts/8 active, ctx 262144, `<think>` + tool-calling |
 | **Fits** | one ~30 GiB Arc GPU at `-ngl 99` (full offload) |
 | **Perplexity** | 7.19 (wikitext-2) |

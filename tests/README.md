@@ -32,17 +32,17 @@ needed `llama-perplexity` / `llama-bench` as serialized short-lived processes
 (one GPU job at a time), and always tears the server down via a SIGTERM ->
 grace -> SIGKILL -> reap trap, so it never leaks VRAM.
 
-## The interpreter (critical)
+## The interpreter
 
-The system `/usr/bin/python3` lacks pytest + gguf. The only interpreter with all
-deps is **`$CONV_PY` = `$HOME/venv/bin/python`**. `certify.sh` and
-every direct pytest invocation MUST use it:
+Any Python 3.10+ with the test dependencies works. `env.sh` uses `$HOME/venv/bin/python`
+when that file exists, and otherwise `python3` on `PATH`.
 
 ```bash
-$HOME/venv/bin/python -m pytest tests -q
+python3 -m pip install -r tests/requirements.txt
+python3 -m pytest -q
 ```
 
-Install deps (if ever needed): `$CONV_PY -m pip install -r tests/requirements.txt`.
+GPU certification (`tests/certify.sh`) uses the same `CONV_PY`.
 
 ## What runs with NO GPU
 
@@ -51,9 +51,9 @@ their CLI option is supplied, so you can introspect everything without a GPU.
 
 | command | what happens |
 | --- | --- |
-| `$CONV_PY -m pytest tests -q` | collects the whole suite, **runs only the pure unit tests** (synthetic, in-memory). Gated tests SKIP. |
-| `$CONV_PY -m pytest tests --collect-only` | lists the full suite (behavioral + metadata + perf + ppl) without touching the GPU. |
-| `$CONV_PY -m pytest tests/test_scoring.py -q` | the pure scorer/certify unit tests only. No server, no model. |
+| `python3 -m pytest -q` | collects the whole suite, **runs only the pure unit tests** (synthetic, in-memory, plus the committed logs). Gated GPU tests SKIP. |
+| `python3 -m pytest --collect-only` | lists the full suite (behavioral + metadata + perf + ppl) without touching the GPU. |
+| `python3 -m pytest tests/test_scoring.py -q` | the pure scorer/certify unit tests only. No server, no model. |
 
 Gates (each test that needs it SKIPs when the option is absent):
 
@@ -126,8 +126,11 @@ tests/
 `score_tool` are pure and unit-testable. Everything else
 (`extract_tool_call`, `extract_answer`, `normalize_answer`, `think_ok`, the
 abstain/parallel/`min_calls` pass logic, and the mutual-pass agreement counting)
-is migrated verbatim from `scripts/04b_probes.py`, so existing
-`results/04b_answers/*.json` drop straight in as `--ref-answers`.
+follows `scripts/04b_probes.py`. Parallel probes (`min_calls >= 2`) now require
+every call to be well-formed, not only `tool_calls[0]`. Inline `<tool_call>`
+JSON is parsed with `JSONDecoder.raw_decode`, so nested arguments are not cut
+at the first `}`. Existing `results/04b_answers/*.json` still drop straight in
+as `--ref-answers` (those files already store scored records).
 
 ## Regenerating the BF16 reference answers
 

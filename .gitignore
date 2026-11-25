@@ -10,3 +10,12 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.pyc
+.venv/
+venv/
+.env
+*.egg-info/
+dist/
+
+# Cert runs write these next to the campaign logs. They are not source.
+results/certify_*
+*.xml

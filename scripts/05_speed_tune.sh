@@ -15,19 +15,19 @@ echo "== batch / ubatch sweep — MoE expert-GEMM un-starve (prefill >= max ub s
 "$RUN_BIN/llama-bench" -m "$M" -ngl "$QNGL" -p 4096 -n 128 -r 3 \
   -b 8192 -ub 1024,2048,4096 | tee "$RES/05_batch.txt"
 
-echo "== flash-attention on/off =="
-"$BIN/llama-bench" -m "$M" -ngl "$QNGL" -p 512 -n 128 -r 3 -fa 0,1 \
+echo "== flash-attention on/off (ship binary $RUN_BIN) =="
+"$RUN_BIN/llama-bench" -m "$M" -ngl "$QNGL" -p 512 -n 128 -r 3 -fa 0,1 \
   | tee "$RES/05_flashattn.txt" || echo "   (check -fa flag spelling for this build)"
 
-echo "== decode at depth (QUEST runs long agentic contexts; ctx up to 262144) =="
-"$BIN/llama-bench" -m "$M" -ngl "$QNGL" -n 128 -d 0,4096,16384,32768,65536 -fa 1 -r 2 \
+echo "== decode at depth (ship binary; QUEST runs long agentic contexts; ctx up to 262144) =="
+"$RUN_BIN/llama-bench" -m "$M" -ngl "$QNGL" -n 128 -d 0,4096,16384,32768,65536 -fa 1 -r 2 \
   | tee "$RES/05_depth.txt" || true
 
 if [[ -x "$MOE_BIN/llama-bench" ]]; then
   echo "== A/B: MoE-reorder build vs main (Q6_K mul_mat_id + router/expert-combine fusions) =="
   "$MOE_BIN/llama-bench" -m "$M" -ngl "$QNGL" -p 512 -n 128 -r 3 -fa 1 \
     | tee "$RES/05_moe_reorder.txt"
-  echo "   compare tg128 vs 05_flashattn.txt; reorder/fusions should help most at Q6_K."
+  echo "   05_flashattn.txt is the ship binary ($RUN_BIN). This file is the MoE tree alone."
 else
   echo "== MoE-reorder build not built; skipping A/B =="
   echo "   build: cd $MOE_LCPP && cmake -B build -DGGML_SYCL=ON -DCMAKE_BUILD_TYPE=Release && cmake --build build -j"

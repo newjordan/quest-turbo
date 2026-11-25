@@ -23,8 +23,10 @@ think_struct_ok->think_ok, the abstain/parallel/min_calls pass logic, and the
 mutual-pass agreement counting) is migrated VERBATIM, so existing
 results/04b_answers/*.json remain valid inputs to certify().
 """
+import argparse
 import os
 import re
+import sys
 import json
 import time
 import subprocess
@@ -86,34 +88,75 @@ def resolve_thresholds(spec, *, perf_tolerance=None):
 # --------------------------------------------------------------------------- #
 # (A) PURE — tool-call extraction (VERBATIM from 04b_probes.py)
 # --------------------------------------------------------------------------- #
-def extract_tool_call(message):
-    """Return (fn_name, args_dict, malformed_reason).
+def _loads_tool_object(text):
+    """Parse one tool-call JSON object. raw_decode keeps nested braces intact.
 
-    Handles both the structured tool_calls field and a raw
-    <tool_call>{...}</tool_call> blob in content. PURE.
-    malformed in {'', 'unparseable-args:<e>', 'unparseable-inline:<e>', 'no-tool-call'}.
+    A non-greedy ``\\{.*?\\}`` regex stops at the first closing brace, so nested
+    arguments (create_event attendees, create_order items) were reported as
+    unparseable even when the model emitted valid JSON.
     """
+    text = (text or "").strip()
+    if not text:
+        raise ValueError("empty tool-call body")
+    obj, _end = json.JSONDecoder().raw_decode(text)
+    if not isinstance(obj, dict):
+        raise ValueError("tool call JSON must be an object")
+    return obj
+
+
+def _parse_structured_call(tc):
+    fn = (tc or {}).get("function", {}) or {}
+    name = fn.get("name", "") or ""
+    raw = fn.get("arguments", "")
+    if isinstance(raw, dict):
+        return name, raw, ""
+    try:
+        parsed = json.loads(raw) if not isinstance(raw, (bytes, bytearray)) else json.loads(raw.decode())
+        if not isinstance(parsed, dict):
+            raise ValueError("arguments must be an object")
+        return name, parsed, ""
+    except Exception as e:
+        return name, {}, f"unparseable-args:{e}"
+
+
+def _parse_inline_block(block):
+    try:
+        obj = _loads_tool_object(block)
+    except Exception as e:
+        return "", {}, f"unparseable-inline:{e}"
+    args = obj.get("arguments", obj.get("parameters", {}))
+    name = obj.get("name", "") or ""
+    if not isinstance(args, dict):
+        return name, {}, "unparseable-inline:arguments-not-object"
+    return name, args, ""
+
+
+def extract_tool_calls(message):
+    """Every tool call in the message, in order.
+
+    Returns a list of (fn_name, args_dict, malformed_reason). A message with no
+    call is a single ('', {}, 'no-tool-call') entry. Structured tool_calls win
+    over inline ``<tool_call>`` blocks. PURE.
+    """
+    message = message or {}
     tcs = message.get("tool_calls")
     if tcs:
-        fn = tcs[0].get("function", {})
-        name = fn.get("name", "")
-        raw = fn.get("arguments", "")
-        if isinstance(raw, dict):
-            return name, raw, ""
-        try:
-            return name, json.loads(raw), ""
-        except Exception as e:
-            return name, {}, f"unparseable-args:{e}"
-    # fallback: model emitted the call inline in content
+        return [_parse_structured_call(tc) for tc in tcs]
     content = message.get("content") or ""
-    m = re.search(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", content, flags=re.DOTALL)
-    if m:
-        try:
-            obj = json.loads(m.group(1))
-            return obj.get("name", ""), obj.get("arguments", obj.get("parameters", {})), ""
-        except Exception as e:
-            return "", {}, f"unparseable-inline:{e}"
-    return "", {}, "no-tool-call"
+    blocks = re.findall(r"<tool_call>\s*(.*?)\s*</tool_call>", content, flags=re.DOTALL)
+    if blocks:
+        return [_parse_inline_block(block) for block in blocks]
+    return [("", {}, "no-tool-call")]
+
+
+def extract_tool_call(message):
+    """Return the first (fn_name, args_dict, malformed_reason).
+
+    Handles both the structured tool_calls field and raw
+    <tool_call>{...}</tool_call> blobs in content. PURE.
+    malformed in {'', 'unparseable-args:<e>', 'unparseable-inline:<e>', 'no-tool-call'}.
+    """
+    return extract_tool_calls(message)[0]
 
 
 # --------------------------------------------------------------------------- #
@@ -239,30 +282,47 @@ def check_tool_args(args, checks):
 def score_tool(probe, message):
     """PURE. Score one tool probe against a server message dict.
 
-    pass logic EXACTLY as 04b cmd_collect:
+    pass logic:
       expect_fn == '__none__'  -> pass = (bad=='no-tool-call') and content non-empty
-      min_calls >= 2           -> pass = n_calls>=min_calls and routed and args_ok and not bad
+      min_calls >= 2           -> EVERY call is well-formed, routed, and args-ok,
+                                  and there are at least min_calls of them.
+                                  (Checking only tool_calls[0] let a broken second
+                                  parallel call ship as a pass.)
       else                     -> pass = routed and args_ok and not bad
     """
-    name, args, bad = extract_tool_call(message)
-    n_calls = len(message.get("tool_calls") or [])
+    message = message or {}
+    calls = extract_tool_calls(message)
+    name, args, bad = calls[0]
     content = message.get("content") or ""
     expect_fn = probe["expect_fn"]
-    routed = (name == expect_fn)
-    args_ok = (not bad) and check_tool_args(args, probe.get("arg_checks", []))
+    checks = probe.get("arg_checks", [])
+    no_call = len(calls) == 1 and bad == "no-tool-call"
+    n_calls = 0 if no_call else len(calls)
+    any_bad = next((c[2] for c in calls if c[2] and c[2] != "no-tool-call"), "")
 
     if expect_fn == "__none__":
+        routed = name == expect_fn
+        args_ok = (not bad) and check_tool_args(args, checks)
+        malformed = bad
         ok = (bad == "no-tool-call") and bool(content.strip())
     elif probe.get("min_calls", 1) >= 2:
-        ok = (n_calls >= probe["min_calls"]) and routed and args_ok and not bad
+        malformed = any_bad or (bad if no_call else "")
+        routed = (not no_call) and all(c[0] == expect_fn and not c[2] for c in calls)
+        args_ok = (not malformed) and (not no_call) and all(
+            check_tool_args(c[1], checks) for c in calls
+        )
+        ok = (n_calls >= probe["min_calls"]) and routed and args_ok and not malformed
     else:
+        routed = name == expect_fn
+        args_ok = (not bad) and check_tool_args(args, checks)
+        malformed = bad
         ok = routed and args_ok and not bad
 
     return {
         "want_fn": expect_fn,
         "got_fn": name,
         "args": args,
-        "malformed": bad,
+        "malformed": malformed,
         "routed": routed,
         "args_ok": args_ok,
         "n_calls": n_calls,
@@ -482,6 +542,21 @@ def certify(cand, ref, thresholds):
     reason_drop = reason_t.get("key_drop_max", 0)
     ref_required = think_t.get("ref_required")
 
+    # cand_must_equal_ref is part of the spec. Ignoring it made the flag a no-op.
+    must_equal = think_t.get("cand_must_equal_ref", True)
+    if ref_required is None:
+        think_pass = (th_c == th_r) if must_equal else True
+        think_detail = f"think_ok cand {th_c} vs ref {th_r}"
+    elif must_equal:
+        think_pass = (th_r == ref_required) and (th_c == th_r)
+        think_detail = f"think_ok cand {th_c}==ref {th_r}==required {ref_required}"
+    else:
+        think_pass = th_r >= ref_required and th_c >= ref_required
+        think_detail = (
+            f"think_ok cand {th_c}>={ref_required} ref {th_r}>={ref_required} "
+            "(equality not required)"
+        )
+
     aggregate = [
         CheckResult(
             "tool_key", tk_c >= tk_r - tool_drop, "aggregate",
@@ -499,10 +574,7 @@ def certify(cand, ref, thresholds):
             "reason_agree", agr["reason_agree"] >= reason_t.get("agree_min", 0), "aggregate",
             f"reason_agree {agr['reason_agree']}>={reason_t.get('agree_min')}",
         ),
-        CheckResult(
-            "think_ok", (th_r == ref_required) and (th_c == th_r), "aggregate",
-            f"think_ok cand {th_c}==ref {th_r}==required {ref_required}",
-        ),
+        CheckResult("think_ok", think_pass, "aggregate", think_detail),
     ]
     checks.extend(aggregate)
 
@@ -646,25 +718,48 @@ def parse_llama_bench(text):
 
 
 def select_bench(rows, test, depth=0):
-    """PURE. t_s of the first row matching (test, depth); else None."""
+    """PURE. t_s of the first row matching (test, depth); else None.
+
+    A sweep file can contain several rows for the same test (FA on and off, two
+    builds). The first row wins. ``repeated_headline_tests`` surfaces that so a
+    gate does not silently certify the wrong configuration.
+    """
     for row in rows:
         if row.get("test") == test and row.get("depth", 0) == depth:
             return row.get("t_s")
     return None
 
 
+def repeated_headline_tests(rows):
+    """Map test name -> [t_s, ...] for depth-0 rows that appear more than once."""
+    seen = {}
+    for row in rows:
+        if row.get("depth", 0) != 0:
+            continue
+        seen.setdefault(row.get("test"), []).append(row.get("t_s"))
+    return {name: vals for name, vals in seen.items() if len(vals) > 1}
+
+
 def check_performance(rows, thresholds):
     """PURE. pp512/tg128 vs computed minimums."""
     pp = select_bench(rows, "pp512")
     tg = select_bench(rows, "tg128")
+    dups = repeated_headline_tests(rows)
+
+    def detail(name, val, minimum):
+        extra = ""
+        if name in dups:
+            extra = f"; first of {len(dups[name])} {name} rows {dups[name]}"
+        return f"{val}>={minimum}{extra}"
+
     return [
         CheckResult(
             "pp512", pp is not None and pp >= thresholds["pp512_min"], "aggregate",
-            f"{pp}>={thresholds['pp512_min']}",
+            detail("pp512", pp, thresholds["pp512_min"]),
         ),
         CheckResult(
             "tg128", tg is not None and tg >= thresholds["tg128_min"], "aggregate",
-            f"{tg}>={thresholds['tg128_min']}",
+            detail("tg128", tg, thresholds["tg128_min"]),
         ),
     ]
 
@@ -845,15 +940,103 @@ def ask_tool(base_url, tools, user_msg, max_tokens=4096):
     )
 
 
+def message_text(message):
+    """Reply text the scorers should see.
+
+    llama-server can split a trace into ``reasoning_content`` and leave ``content``
+    empty (or without the ANSWER line). Dropping that field made think/reason
+    probes fail on a server that was actually answering. When the answer is
+    already in content, content is returned unchanged. An ANSWER line that exists
+    only in the trace is kept after ``</think>`` so ``think_ok`` can see it.
+    """
+    if isinstance(message, str):
+        return message
+    if not isinstance(message, dict):
+        return ""
+    content = message.get("content") or ""
+    reasoning = message.get("reasoning_content") or ""
+    if not reasoning:
+        return content
+    if "<think>" in content.lower() or "</think>" in content.lower():
+        return content
+    if "ANSWER:" in content.upper():
+        return content
+    match = re.search(r"ANSWER:\s*.+", reasoning, flags=re.IGNORECASE)
+    if match:
+        trace = reasoning[: match.start()].rstrip()
+        answer = match.group(0).strip()
+        body = f"<think>\n{trace}\n</think>\n{answer}" if trace else answer
+        if content.strip():
+            return f"{body}\n{content}".strip()
+        return body.strip()
+    if content.strip():
+        return f"<think>\n{reasoning}\n</think>\n{content}".strip()
+    return reasoning
+
+
 def ask_text(base_url, question, max_tokens=4096, *, suffix=REASONING_SUFFIX):
-    """04b ask_text. Returns message['content'] or ''."""
+    """04b ask_text. Returns the scorer-visible reply text."""
     msg = chat(
         base_url,
         [{"role": "user", "content": question + suffix}],
         temperature=0,
         max_tokens=max_tokens,
     )
-    return msg.get("content") or ""
+    return message_text(msg)
+
+
+def parity_verdict(ref_text, cand_text, ref_ok=True, cand_ok=True):
+    """Greedy parity label. A failed or empty generation is ERROR, never EXACT.
+
+    ``llama-cli`` sometimes exits 0 with an empty stdout when the real error was
+    on stderr. Treating that pair as EXACT reported a false match.
+    """
+    if not ref_ok or not cand_ok:
+        return "ERROR"
+    if not str(ref_text or "").strip() or not str(cand_text or "").strip():
+        return "ERROR"
+    if ref_text == cand_text:
+        return "EXACT"
+    return "DIVERGES"
+
+
+def smoke_tool_route(message):
+    """S1: weather tool, Paris, celsius, parseable arguments."""
+    name, args, bad = extract_tool_call(message)
+    return bool(
+        not bad
+        and name == "get_weather"
+        and "paris" in str(args.get("location", "")).lower()
+        and str(args.get("unit", "")).strip().lower() == "celsius"
+    )
+
+
+def smoke_round_trip(message):
+    """S2: the tool result 391 is in the reply and the model does not call again."""
+    message = message or {}
+    text = (message.get("content") or "") + (message.get("reasoning_content") or "")
+    return ("391" in text) and not (message.get("tool_calls"))
+
+
+def smoke_think(message):
+    """S3: the apple-problem reply contains 120 and is non-empty."""
+    message = message if isinstance(message, dict) else {"content": message or ""}
+    blob = message_text(message) + (message.get("reasoning_content") or "")
+    return ("120" in blob.replace(" ", "")) and bool(blob.strip())
+
+
+def format_grade_row(label, summary, agreement, verdict):
+    """One aligned grade-table row. summary is summarize(); agreement may be None."""
+    nt, nr = summary.get("nt", 0), summary.get("nr", 0)
+    tool = f"{summary.get('tool_key', 0)}/{nt}"
+    reason = f"{summary.get('reason_key', 0)}/{nr}"
+    think = f"{summary.get('think_ok', 0)}/{nr}"
+    if agreement is None:
+        tagree, ragree = "-", "-"
+    else:
+        tagree = f"{agreement.get('tool_agree', 0)}/{nt}"
+        ragree = f"{agreement.get('reason_agree', 0)}/{nr}"
+    return f"{label:<10} {tool:>7} {tagree:>7} {reason:>8} {ragree:>7} {think:>7}  {verdict}"
 
 
 def collect(base_url, spec, max_tokens=4096, *, log=print):
@@ -936,3 +1119,112 @@ def read_gguf_metadata(model_path):
 
     r = GGUFReader(str(model_path), mode="r")
     return {name: _coerce(field.contents()) for name, field in r.fields.items()}
+
+
+def _paint(text, code):
+    if os.environ.get("NO_COLOR") or not sys.stdout.isatty():
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def _load_answers(path):
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or "tool" not in data or "reason" not in data:
+        raise SystemExit(f"{path} is not a probe-answer file (expected tool and reason keys)")
+    return data
+
+
+def _cmd_certify(args):
+    spec = load_spec(args.spec)
+    thresholds = resolve_thresholds(spec, perf_tolerance=args.perf_tolerance)
+    report = certify(_load_answers(args.cand), _load_answers(args.ref), thresholds)
+    text = report.render()
+    if report.passed:
+        text = text.replace("==== QUEST CERT: SHIP ====", "==== QUEST CERT: " + _paint("SHIP", "32") + " ====")
+        text = text.replace("==== SHIP ====", "==== " + _paint("SHIP", "32") + " ====")
+    else:
+        text = text.replace("==== QUEST CERT: NO-SHIP ====", "==== QUEST CERT: " + _paint("NO-SHIP", "31") + " ====")
+        text = text.replace("==== NO-SHIP ====", "==== " + _paint("NO-SHIP", "31") + " ====")
+    print(text)
+    if args.json_out:
+        parent = os.path.dirname(args.json_out)
+        if parent:
+            os.makedirs(parent, exist_ok=True)
+        with open(args.json_out, "w", encoding="utf-8") as f:
+            json.dump(report.as_dict(), f, indent=2)
+            f.write("\n")
+    return 0 if report.passed else 1
+
+
+def _cmd_ppl(args):
+    with open(args.path, "r", encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    value = parse_ppl(text)
+    if value is None:
+        print(f"no Final estimate in {args.path}")
+        return 1
+    spec = load_spec(args.spec)
+    result = check_ppl(value, resolve_thresholds(spec))
+    mark = "PASS" if result.passed else "FAIL"
+    print(f"PPL {value}  ceiling {spec['thresholds']['ppl']['max']}  {mark}")
+    return 0 if result.passed else 1
+
+
+def _cmd_bench(args):
+    with open(args.path, "r", encoding="utf-8", errors="replace") as f:
+        rows = parse_llama_bench(f.read())
+    if not rows:
+        print(f"no llama-bench rows in {args.path}")
+        return 1
+    spec = load_spec(args.spec)
+    thresholds = resolve_thresholds(spec, perf_tolerance=args.perf_tolerance)
+    print(f"{'test':<16} {'depth':>8} {'t/s':>12}")
+    for row in rows:
+        print(f"{row['test']:<16} {row['depth']:>8} {row['t_s']:>12.2f}")
+    dups = repeated_headline_tests(rows)
+    if dups:
+        print("warning: more than one depth-0 row for " + ", ".join(sorted(dups)))
+        print("the gate uses the first row of each test")
+    failed = [c for c in check_performance(rows, thresholds) if not c.passed]
+    if failed:
+        for c in failed:
+            print(f"FAIL {c.name}: {c.detail}")
+        return 1
+    print(
+        f"PASS pp512>={thresholds['pp512_min']} tg128>={thresholds['tg128_min']}"
+    )
+    return 0
+
+
+def main(argv=None):
+    """CLI for the offline cert tools. Exit 0 is a pass."""
+    parser = argparse.ArgumentParser(
+        prog="harness",
+        description="Score QUEST probe answers, perplexity logs, and llama-bench tables.",
+    )
+    parser.add_argument("--spec", default=SPEC_PATH, help="path to spec.yaml")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    cert = sub.add_parser("certify", help="SHIP/NO-SHIP from saved probe JSON")
+    cert.add_argument("--cand", required=True, help="candidate answers JSON")
+    cert.add_argument("--ref", required=True, help="BF16 reference answers JSON")
+    cert.add_argument("--perf-tolerance", type=float, default=None)
+    cert.add_argument("--json-out", help="write the report dict here")
+    cert.set_defaults(func=_cmd_certify)
+
+    ppl = sub.add_parser("ppl", help="parse a llama-perplexity log and apply the ceiling")
+    ppl.add_argument("path")
+    ppl.set_defaults(func=_cmd_ppl)
+
+    bench = sub.add_parser("bench", help="parse a llama-bench table and apply the floor")
+    bench.add_argument("path")
+    bench.add_argument("--perf-tolerance", type=float, default=None)
+    bench.set_defaults(func=_cmd_bench)
+
+    args = parser.parse_args(argv)
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

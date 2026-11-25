@@ -572,3 +572,97 @@ class TestScoreReason:
         r = harness.score_reason({"id": "xy", "expect": "21"}, "")
         assert r["norm"] == ""
         assert not r["think_ok"]
+
+
+class TestNestedAndParallelCalls:
+    def test_inline_nested_json_is_not_truncated(self):
+        blob = json.dumps({
+            "name": "create_event",
+            "arguments": {
+                "title": "Q3 Review",
+                "date": "2026-07-01",
+                "attendees": ["alice", "bob"],
+            },
+        })
+        name, args, bad = harness.extract_tool_call(inline_msg(blob))
+        assert bad == ""
+        assert name == "create_event"
+        assert args["attendees"] == ["alice", "bob"]
+        assert args["date"] == "2026-07-01"
+
+    def test_two_inline_calls_count(self):
+        content = (
+            '<tool_call>{"name":"get_weather","arguments":{"location":"Paris","unit":"celsius"}}</tool_call>'
+            '<tool_call>{"name":"get_weather","arguments":{"location":"Tokyo","unit":"celsius"}}</tool_call>'
+        )
+        rec = harness.score_tool(PAR_PROBE, {"role": "assistant", "content": content})
+        assert rec["n_calls"] == 2
+        assert rec["pass"]
+
+    def test_parallel_second_call_malformed_fails(self):
+        msg = multi_tool_msg([
+            ("get_weather", json.dumps({"location": "Paris", "unit": "celsius"})),
+            ("get_weather", "{not json"),
+        ])
+        rec = harness.score_tool(PAR_PROBE, msg)
+        assert rec["n_calls"] == 2
+        assert rec["malformed"].startswith("unparseable-args:")
+        assert not rec["pass"]
+
+    def test_parallel_second_call_bad_enum_fails(self):
+        msg = multi_tool_msg([
+            ("get_weather", json.dumps({"location": "Paris", "unit": "celsius"})),
+            ("get_weather", json.dumps({"location": "Tokyo", "unit": "fahrenheit"})),
+        ])
+        rec = harness.score_tool(PAR_PROBE, msg)
+        assert rec["malformed"] == ""
+        assert not rec["args_ok"]
+        assert not rec["pass"]
+
+
+class TestMessageTextAndSmoke:
+    def test_reasoning_content_is_kept_when_content_has_no_answer(self):
+        text = harness.message_text({
+            "content": "",
+            "reasoning_content": "sold a third, then a quarter of the rest\nANSWER: 120",
+        })
+        assert harness.think_ok(text)
+        assert harness.extract_answer(text) == "120"
+
+    def test_content_wins_when_it_already_has_the_answer(self):
+        text = harness.message_text({
+            "content": "ANSWER: 120",
+            "reasoning_content": "ANSWER: 999",
+        })
+        assert text == "ANSWER: 120"
+
+    def test_smoke_helpers(self):
+        ok = tool_msg("get_weather", json.dumps({"location": "Paris", "unit": "celsius"}))
+        assert harness.smoke_tool_route(ok)
+        assert not harness.smoke_tool_route(tool_msg("get_weather", json.dumps({"location": "Paris", "unit": "fahrenheit"})))
+        assert harness.smoke_round_trip({"content": "The product is 391.", "tool_calls": None})
+        assert not harness.smoke_round_trip({"content": "391", "tool_calls": [{"id": "c1"}]})
+        assert harness.smoke_think({"content": "<think>x</think>\nANSWER: 120"})
+        assert not harness.smoke_think({"content": "ANSWER: 80"})
+
+
+class TestParityAndThinkFlag:
+    def test_empty_generations_are_not_exact(self):
+        assert harness.parity_verdict("", "", True, True) == "ERROR"
+        assert harness.parity_verdict("same", "same", False, True) == "ERROR"
+        assert harness.parity_verdict("same", "same", True, True) == "EXACT"
+        assert harness.parity_verdict("a", "b", True, True) == "DIVERGES"
+
+    def test_think_equality_flag_is_honored(self):
+        th = thresholds()
+        th["think"] = {"ref_required": 10, "cand_must_equal_ref": False}
+        cand = make_answers(reason_think={"taps": False})
+        ref = make_answers()
+        # Equality is off, but the candidate is still below the required 10.
+        assert not harness.certify(cand, ref, th).passed
+        th["sanity"] = {"bf16_tool_min": 8, "bf16_think_min": 9}
+        th["think"] = {"ref_required": 9, "cand_must_equal_ref": False}
+        ref_low = make_answers(reason_think={"taps": False})
+        cand_ok = make_answers()
+        # Both are at or above 9, so a one-probe think gap is allowed.
+        assert harness.certify(cand_ok, ref_low, th).passed
