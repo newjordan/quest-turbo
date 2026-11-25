@@ -11,6 +11,8 @@ echo ">> Serving Q5_K_M on 127.0.0.1:$PORT  (build=$RUN_BIN, ngl $SNGL, ctx $CTX
   --cache-type-k "$KV" --cache-type-v "$KV" -ub "$UBATCH" -b "$BBATCH" --jinja --alias quest-30b-rl-turbo \
   > "$RES/06_server.log" 2>&1 &
 SRV=$!
+# Called from the EXIT/INT/TERM traps below, and once before the final exit.
+# shellcheck disable=SC2329
 stop_srv() {
   [[ -z "${SRV:-}" ]] && return 0
   local pid="$SRV"
@@ -87,4 +89,6 @@ sys.exit(0 if (s1 and s2 and s3) else 1)
 PY
 rc=${PIPESTATUS[0]}
 echo ">> Smoke done (exit $rc). Serve for real with: QUANT=Q5_K_M CTX=$CTX bash scripts/06_serve.sh"
+stop_srv
+trap - EXIT INT TERM
 exit "$rc"
